@@ -12,7 +12,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Optional;
 
-@WebServlet("/currency")
+@WebServlet("/currency/*")
 public class CurrencyServlet extends HttpServlet {
     private CurrencyRepository currencyRepository;
 
@@ -23,27 +23,59 @@ public class CurrencyServlet extends HttpServlet {
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        String currencyIdParam = req.getParameter("id");
+        String pathInfo = req.getPathInfo();
+        if (pathInfo == null || pathInfo.equals("/")) {
+            resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "Указана не корректная валюта. Пример: .../currency/USD или /currency/id");
+            return;
+        }
 
-        if (currencyIdParam != null && !currencyIdParam.isEmpty()) {
-            try {
-                Long currencyId = Long.parseLong(currencyIdParam);
-                Optional<Currency> currencyOptional = currencyRepository.findById(currencyId);
+        String currencyReq = pathInfo.substring(1).toUpperCase();
 
-                if (currencyOptional.isPresent()) {
-                    ObjectMapper objectMapper = new ObjectMapper();
-                    String jsonCurrency = objectMapper.writeValueAsString(currencyOptional.get());
+        try {
+            Long id = Long.parseLong(currencyReq);
 
-                    resp.setContentType("application/json");
-                    resp.getWriter().write(jsonCurrency);
-                } else {
-                    resp.getWriter().write("Currency not found");
-                }
-            } catch (NumberFormatException e) {
-                resp.getWriter().write("Invalid ID parameter");
-            }
-        } else {
-            resp.getWriter().write("ID parameter is required");
+            processById(id, resp);
+        } catch (NumberFormatException e) {
+            processByCode(currencyReq, resp);
         }
     }
+
+
+    @Override
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        String code = req.getParameter("code");
+        String fullname = req.getParameter("fullname");
+        String sign = req.getParameter("sign");
+
+        Currency currency = new Currency();
+        currency.setCode(code);
+        currency.setFullname(fullname);
+        currency.setSign(sign);
+
+        currencyRepository.save(currency);
+        resp.getWriter().write("Валюта успешно создана");
+    }
+
+    private void processById(Long id, HttpServletResponse response) throws IOException {
+        Optional<Currency> currencyIdOptional = currencyRepository.findById(id);
+
+        if (currencyIdOptional.isEmpty()) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND, "Валюта с ID " + id + " не найдена.");
+            return;
+        }
+
+        response.getWriter().write(new ObjectMapper().writeValueAsString(currencyIdOptional.get()));
+    }
+
+    private void processByCode(String code, HttpServletResponse response) throws IOException {
+        Optional<Currency> currencyCodeOptional = currencyRepository.findByCode(code);
+
+        if (currencyCodeOptional.isEmpty()) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND, "Валюта с кодом " + code + " не найдена.");
+            return;
+        }
+
+        response.getWriter().write(new ObjectMapper().writeValueAsString(currencyCodeOptional.get()));
+    }
+
 }

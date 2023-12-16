@@ -59,6 +59,23 @@ public class CurrencyRepository implements CrudRepository<Currency> {
     }
 
     @Override
+    public Optional<Currency> findByCode(String code) {
+        try (Connection connection = DatabaseUtil.getConnection();
+             PreparedStatement statement = connection.prepareStatement(SqlQueries.SELECT_BY_CODE_CURRENCY)) {
+            statement.setString(1, code);
+            ResultSet resultSet = statement.executeQuery();
+
+
+            if (resultSet.next()) {
+                return Optional.of(mapNewCurrency(resultSet));
+            }
+        } catch (SQLException | ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+        return Optional.empty();
+    }
+
+    @Override
     public void save(Currency currency) {
 
     }

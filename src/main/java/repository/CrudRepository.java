@@ -7,6 +7,8 @@ import java.util.Optional;
 public interface CrudRepository<T> {
     Optional<T> findById(Long id);
     List<T> findAll() throws SQLException, ClassNotFoundException;
+
+    Optional<T> findByCode(String code);
     void save(T entity);
     List<T> update(T entity);
     void delete(Long id);
